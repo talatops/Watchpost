@@ -166,3 +166,96 @@ func AssignDevicesToTeam(w http.ResponseWriter, r *http.Request) {
 		"count":    len(req.DeviceIDs),
 	})
 }
+
+// GetTeamMembers returns all users assigned to a team
+func GetTeamMembers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.Split(r.URL.Path, "/")
+	id, err := uuid.Parse(parts[len(parts)-2])
+	if err != nil {
+		http.Error(w, `{"error":"invalid team id"}`, http.StatusBadRequest)
+		return
+	}
+	rows, err := database.DB.Query(`
+		SELECT u.id, u.organization_id, u.email, u.role, u.created_at, u.updated_at
+		FROM team_members tm JOIN users u ON tm.user_id = u.id
+		WHERE tm.team_id = $1 ORDER BY u.email`, id)
+	if err != nil {
+		http.Error(w, `{"error":"db query failed"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+	type Member struct {
+		ID    uuid.UUID `json:"id"`
+		Email string    `json:"email"`
+		Role  string    `json:"role"`
+	}
+	var members []Member
+	for rows.Next() {
+		var u struct {
+			id, orgID            uuid.UUID
+			email, role          string
+			createdAt, updatedAt interface{}
+		}
+		if scanErr := rows.Scan(&u.id, &u.orgID, &u.email, &u.role, &u.createdAt, &u.updatedAt); scanErr == nil {
+			members = append(members, Member{ID: u.id, Email: u.email, Role: u.role})
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(members)
+}
+
+// AddTeamMember assigns a user to a team
+func AddTeamMember(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.Split(r.URL.Path, "/")
+	teamID, err := uuid.Parse(parts[len(parts)-2])
+	if err != nil {
+		http.Error(w, `{"error":"invalid team id"}`, http.StatusBadRequest)
+		return
+	}
+	var body struct {
+		UserID uuid.UUID `json:"user_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error":"user_id is required"}`, http.StatusBadRequest)
+		return
+	}
+	_, err = database.DB.Exec(
+		`INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		teamID, body.UserID)
+	if err != nil {
+		http.Error(w, `{"error":"db insert failed"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write([]byte(`{"status":"added"}`))
+}
+
+// RemoveTeamMember removes a user from a team
+func RemoveTeamMember(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+	parts := strings.Split(r.URL.Path, "/")
+	// /api/v1/teams/{teamId}/members/{userId}
+	userID, err := uuid.Parse(parts[len(parts)-1])
+	if err != nil {
+		http.Error(w, `{"error":"invalid user id"}`, http.StatusBadRequest)
+		return
+	}
+	teamID, err := uuid.Parse(parts[len(parts)-3])
+	if err != nil {
+		http.Error(w, `{"error":"invalid team id"}`, http.StatusBadRequest)
+		return
+	}
+	_, _ = database.DB.Exec(`DELETE FROM team_members WHERE team_id=$1 AND user_id=$2`, teamID, userID)
+	w.WriteHeader(http.StatusNoContent)
+}

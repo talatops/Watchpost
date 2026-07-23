@@ -23,6 +23,9 @@ var phase3SQL string
 //go:embed 004_policy_versions.sql
 var phase4SQL string
 
+//go:embed 005_team_members.sql
+var phase5SQL string
+
 var DB *sql.DB
 
 // InitDB initializes connection to PostgreSQL and runs schema migration
@@ -76,6 +79,10 @@ func InitDB() (*sql.DB, error) {
 
 	if _, err := db.Exec(phase4SQL); err != nil {
 		return nil, fmt.Errorf("failed to run phase 4 schema migrations: %w", err)
+	}
+
+	if _, err := db.Exec(phase5SQL); err != nil {
+		return nil, fmt.Errorf("failed to run phase 5 schema migrations: %w", err)
 	}
 
 	log.Println("All schema migrations applied successfully.")

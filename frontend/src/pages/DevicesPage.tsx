@@ -245,7 +245,7 @@ export default function DevicesPage() {
                   ['Battery', dev.battery_level != null ? `${dev.battery_level}%` : 'N/A'],
                   ['Storage Free', dev.storage_available != null ? `${(dev.storage_available / 1e9).toFixed(1)} GB` : 'N/A'],
                   ['Wi-Fi SSID', dev.wifi_ssid || 'N/A'],
-                  ['Team', dev.team_id || 'Unassigned'],
+                  ['Team', (dev.team_id ? (teams.find(t => t.id === dev.team_id)?.name ?? dev.team_id) : 'Unassigned')],
                 ].map(([k, v]) => (
                   <div key={k}><p className="text-xs text-gray-400 uppercase">{k}</p><p className="font-semibold text-white mt-0.5 truncate">{v}</p></div>
                 ))}

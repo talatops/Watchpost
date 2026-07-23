@@ -403,17 +403,29 @@ func main() {
 	})
 	admin.HandleFunc("/api/v1/teams/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if strings.HasSuffix(path, "/devices") {
+		switch {
+		case strings.HasSuffix(path, "/devices"):
 			team.AssignDevicesToTeam(w, r)
-			return
-		}
-		switch r.Method {
-		case http.MethodPut:
-			team.UpdateTeam(w, r)
-		case http.MethodDelete:
-			team.DeleteTeam(w, r)
+		case strings.HasSuffix(path, "/members"):
+			switch r.Method {
+			case http.MethodGet:
+				team.GetTeamMembers(w, r)
+			case http.MethodPost:
+				team.AddTeamMember(w, r)
+			default:
+				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			}
+		case strings.Contains(path, "/members/"):
+			team.RemoveTeamMember(w, r)
 		default:
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			switch r.Method {
+			case http.MethodPut:
+				team.UpdateTeam(w, r)
+			case http.MethodDelete:
+				team.DeleteTeam(w, r)
+			default:
+				http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			}
 		}
 	})
 

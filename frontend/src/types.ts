@@ -15,6 +15,12 @@ export interface Team {
   created_at: string;
 }
 
+export interface TeamMember {
+  id: string;
+  email: string;
+  role: string;
+}
+
 export interface Device {
   id: string;
   team_id?: string;
