@@ -78,8 +78,10 @@ services:
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-WatchpostAdmin2024ChangeMe}
       SEED_ORG_NAME: ${SEED_ORG_NAME:-Watchpost Organization}
+    volumes:
+      - ./secrets:/run/secrets:ro
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     depends_on:
       postgres:
         condition: service_healthy

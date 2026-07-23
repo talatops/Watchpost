@@ -49,17 +49,23 @@ class SyncWorker(
     private val prefs by lazy { context.getSharedPreferences("OpenMDM_Prefs", Context.MODE_PRIVATE) }
 
     override suspend fun doWork(): Result {
-        val serverUrl = prefs.getString("server_url", null)
-            ?: return Result.failure()
-        val deviceToken = prefs.getString("device_token", null)
-            ?: return Result.failure()
-
-        // Check if an FCM command was injected
+        // Step 1: Execute any FCM-injected device command FIRST.
+        // LOCK / REBOOT / WIPE are LOCAL operations — they don't need network.
+        // We execute them before attempting sync so they run even if the network is down.
         val fcmCommand = inputData.getString(KEY_COMMAND)
         val fcmPayload = inputData.getString(KEY_COMMAND_PAYLOAD) ?: ""
-        if (fcmCommand != null && fcmCommand != "SYNC") {
+        if (!fcmCommand.isNullOrEmpty() && fcmCommand != "SYNC") {
+            Log.i(TAG, "FCM command received: $fcmCommand — executing before sync")
             executeCommand(fcmCommand, fcmPayload)
-            // Still do a sync afterward to deliver any further pending actions
+        }
+
+        // Step 2: Attempt network sync to report telemetry and fetch pending commands.
+        // This is best-effort — a sync failure does NOT undo the command above.
+        val serverUrl = prefs.getString("server_url", null)
+        val deviceToken = prefs.getString("device_token", null)
+        if (serverUrl == null || deviceToken == null) {
+            Log.w(TAG, "No server URL or device token — skipping network sync")
+            return if (fcmCommand != null) Result.success() else Result.failure()
         }
 
         return performSync(serverUrl, deviceToken)
@@ -131,9 +137,8 @@ class SyncWorker(
     // ---- Policy processing --------------------------------------------------
 
     private fun processPolicies(syncJson: JSONObject, serverUrl: String, deviceToken: String) {
-        if (!syncJson.has("active_policies")) return
-
-        val policies = syncJson.getJSONArray("active_policies")
+        // Use optJSONArray — returns null safely if field is missing or JSON null
+        val policies = syncJson.optJSONArray("active_policies") ?: return
         val evaluator = PolicyEvaluator(context)
 
         for (i in 0 until policies.length()) {
@@ -205,9 +210,7 @@ class SyncWorker(
     // ---- App deployments ----------------------------------------------------
 
     private fun processAppDeployments(syncJson: JSONObject) {
-        if (!syncJson.has("app_deployments")) return
-
-        val deployments = syncJson.getJSONArray("app_deployments")
+        val deployments = syncJson.optJSONArray("app_deployments") ?: return
         val installer = AppInstaller(context)
 
         for (i in 0 until deployments.length()) {
@@ -241,9 +244,7 @@ class SyncWorker(
     // ---- Pending commands ---------------------------------------------------
 
     private fun processPendingActions(syncJson: JSONObject) {
-        if (!syncJson.has("pending_actions")) return
-
-        val actions = syncJson.getJSONArray("pending_actions")
+        val actions = syncJson.optJSONArray("pending_actions") ?: return
         for (i in 0 until actions.length()) {
             // pending_actions may be plain strings or objects with {command, payload}
             val item = actions.get(i)
@@ -272,7 +273,13 @@ class SyncWorker(
                     Log.i(TAG, "Screen locked by remote command")
                 }
                 "REBOOT" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    // Guard: don't reboot within 60 seconds of first enrollment
+                    // to prevent accidental reboot loops during install
+                    val enrolledAt = prefs.getLong("enrolled_at_ms", 0L)
+                    val secondsSinceEnroll = (System.currentTimeMillis() - enrolledAt) / 1000
+                    if (enrolledAt > 0 && secondsSinceEnroll < 60) {
+                        Log.w(TAG, "REBOOT suppressed — device enrolled only ${secondsSinceEnroll}s ago (cooldown 60s)")
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         dpm.reboot(admin)
                         Log.i(TAG, "Device reboot triggered")
                     } else {

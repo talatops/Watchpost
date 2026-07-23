@@ -276,8 +276,8 @@ func SyncDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch active policies
-	var policies []model.Policy
+	// Fetch active policies — initialise to empty slice so JSON encodes as [] not null
+	policies := make([]model.Policy, 0)
 	var rows *sql.Rows
 	if dev.TeamID != nil {
 		rows, err = database.DB.Query(`
@@ -298,8 +298,8 @@ func SyncDevice(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Fetch app deployments
-	var apps []AppDeploymentInfo
+	// Fetch app deployments — initialise to empty slice so JSON encodes as [] not null
+	apps := make([]AppDeploymentInfo, 0)
 	var appRows *sql.Rows
 	if dev.TeamID != nil {
 		appRows, err = database.DB.Query(`

@@ -31,7 +31,6 @@
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
                 <action android:name="android.app.action.PROFILE_PROVISIONING_COMPLETE" />
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
@@ -68,6 +67,15 @@
             <intent-filter>
                 <action android:name="com.custom.mdm.INSTALL_COMPLETE" />
                 <action android:name="com.custom.mdm.UNINSTALL_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Boot receiver — reschedules WorkManager sync after device restart -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 

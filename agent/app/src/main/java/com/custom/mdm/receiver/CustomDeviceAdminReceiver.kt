@@ -70,12 +70,6 @@ class CustomDeviceAdminReceiver : DeviceAdminReceiver() {
         schedulePeriodicSync(context)
     }
 
-    /** Reschedule sync on every device boot so it survives reboots. */
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            Log.i(TAG, "Boot completed — rescheduling periodic sync")
-            schedulePeriodicSync(context)
-        }
-    }
+    // NOTE: BOOT_COMPLETED is handled by BootReceiver (separate class)
+    // to avoid issues with the BIND_DEVICE_ADMIN permission restriction.
 }

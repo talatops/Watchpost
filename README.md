@@ -32,7 +32,7 @@ and Google's [Android Enterprise](https://developers.google.com/android/work).
 
 > Watchpost draws from the design philosophy of [FleetDM](https://fleetdm.com/) for its
 > fleet-as-code UX and builds on the [Android Device Policy Controller](https://developer.android.com/work/dpc/build-dpc)
-> APIs — the same layer that powers the [OpenMDM](https://openmdm.org/) ecosystem.
+> APIs — the same layer that powers the [OpenMDM](https://openmdm.io/) ecosystem.
 
 ---
 ## Architecture
@@ -418,7 +418,7 @@ Watchpost is built on, and inspired by, a number of excellent open-source projec
 | [FleetDM](https://fleetdm.com/) | UX philosophy, fleet-as-code design, query-driven telemetry |
 | [Android DevicePolicyManager](https://developer.android.com/reference/android/app/admin/DevicePolicyManager) | Core on-device enforcement API |
 | [Android Enterprise](https://developers.google.com/android/work) | Device Owner and Profile Owner provisioning model |
-| [OpenMDM](https://openmdm.org/) | Open MDM SDK ecosystem and DPC architecture reference |
+| [OpenMDM](https://openmdm.io/) | Open MDM SDK ecosystem and DPC architecture reference |
 | [Firebase Cloud Messaging v1](https://firebase.google.com/docs/cloud-messaging/migrate-v1) | Push notification delivery to Android devices |
 | [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) | Application security verification standard |
 | [golang-jwt/jwt](https://github.com/golang-jwt/jwt) | JWT implementation used for admin and device auth |
@@ -434,5 +434,5 @@ Watchpost is released under the [MIT License](LICENSE).
 
 <p align="center">
   <img src="frontend/public/watchpost-icon.svg" alt="Watchpost" width="48" /><br/>
-  <sub>Built with ❤️ for enterprise device management</sub>
+  <sub>WATCHPOST</sub>
 </p>

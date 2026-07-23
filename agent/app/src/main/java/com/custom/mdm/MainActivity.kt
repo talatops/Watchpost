@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -26,7 +27,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.UUID
+// UUID import removed — no longer needed after stable serial fix
 
 class MainActivity : AppCompatActivity() {
 
@@ -94,6 +95,14 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "onCreate: FATAL ERROR during layout setup", e)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh Device Owner and enrollment status every time app comes to foreground.
+        // This ensures the DO status updates after running: adb shell dpm set-device-owner ...
+        updateEnrollmentStatusUI()
+        appendDebug("onResume: DO=${isDeviceOwner()}")
     }
 
     /**
@@ -227,10 +236,15 @@ class MainActivity : AppCompatActivity() {
             val success = withContext(Dispatchers.IO) {
                 try {
                     val mediaType = "application/json; charset=utf-8".toMediaType()
+                    // Use stable Android ID as fallback when serial is unavailable (emulator/no permission)
+                    val stableSerial = if (serial == "UNAVAILABLE") {
+                        val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                        "EMULATOR_${androidId?.take(12) ?: "UNKNOWN"}"
+                    } else serial
+
                     val payload = JSONObject().apply {
                         put("enrollment_token", enrollmentToken)
-                        put("serial_number", if (serial == "UNAVAILABLE")
-                            "DEMO_" + UUID.randomUUID().toString().substring(0, 8) else serial)
+                        put("serial_number", stableSerial)
                         put("model", Build.MODEL)
                         put("os_version", "Android ${Build.VERSION.RELEASE}")
                         put("patch_level", Build.VERSION.SECURITY_PATCH)
@@ -248,10 +262,18 @@ class MainActivity : AppCompatActivity() {
                             prefs?.edit()
                                 ?.putString("device_token", json.getString("device_token"))
                                 ?.putString("device_id",    json.getString("device_id"))
+                                ?.putLong("enrolled_at_ms", System.currentTimeMillis())
                                 ?.apply()
                             true
                         } else {
-                            Log.e(TAG, "Enrollment failed: HTTP ${response.code}")
+                            val errorBody = response.body?.string() ?: "(no body)"
+                            Log.e(TAG, "Enrollment failed: HTTP ${response.code} — $errorBody")
+                            appendDebug("HTTP ${response.code}: $errorBody")
+                            // Clear any stale token so UI correctly shows UNENROLLED
+                            prefs?.edit()
+                                ?.remove("device_token")
+                                ?.remove("device_id")
+                                ?.apply()
                             false
                         }
                     }
@@ -310,17 +332,47 @@ class MainActivity : AppCompatActivity() {
                         if (response.isSuccessful) {
                             val body = response.body?.string() ?: return@use "Sync complete (no body)"
                             val json = JSONObject(body)
-                            if (json.has("active_policies")) {
-                                val policies = json.getJSONArray("active_policies")
-                                if (policies.length() > 0) {
-                                    val pol = policies.getJSONObject(0)
-                                    val evaluator = com.custom.mdm.policy.PolicyEvaluator(this@MainActivity)
-                                    evaluator.evaluateAndApply(pol.optString("content_yaml", "{}"))
+
+                            // Apply active policies
+                            val policies = json.optJSONArray("active_policies")
+                            if (policies != null && policies.length() > 0) {
+                                val pol = policies.getJSONObject(0)
+                                val evaluator = com.custom.mdm.policy.PolicyEvaluator(this@MainActivity)
+                                evaluator.evaluateAndApply(pol.optString("content_yaml", "{}"))
+                            }
+
+                            // Execute any pending commands immediately — no need to wait for FCM
+                            val pendingActions = json.optJSONArray("pending_actions")
+                            if (pendingActions != null && pendingActions.length() > 0) {
+                                val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+                                val admin = ComponentName(this@MainActivity, com.custom.mdm.receiver.CustomDeviceAdminReceiver::class.java)
+                                for (i in 0 until pendingActions.length()) {
+                                    val cmd = when (val item = pendingActions.get(i)) {
+                                        is String -> item
+                                        is org.json.JSONObject -> item.optString("command", "")
+                                        else -> item.toString()
+                                    }.uppercase()
+                                    Log.i(TAG, "Executing pending command from sync: $cmd")
+                                    appendDebug("Executing: $cmd")
+                                    try {
+                                        when {
+                                            cmd == "LOCK" -> dpm.lockNow()
+                                            cmd == "REBOOT" && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N -> dpm.reboot(admin)
+                                            cmd.startsWith("WIPE:CORPORATE") -> dpm.wipeData(DevicePolicyManager.WIPE_EXTERNAL_STORAGE)
+                                            cmd.startsWith("WIPE") -> dpm.wipeData(0)
+                                        }
+                                    } catch (ex: Exception) {
+                                        Log.e(TAG, "Failed to execute $cmd: ${ex.message}")
+                                        appendDebug("$cmd failed: ${ex.message}")
+                                    }
                                 }
                             }
-                            "Sync complete: ${response.code}"
+
+                            val cmdCount = pendingActions?.length() ?: 0
+                            "Sync complete: ${response.code}" + if (cmdCount > 0) " ($cmdCount commands executed)" else ""
                         } else {
-                            "Sync failed: Code ${response.code}"
+                            val errorBody = response.body?.string() ?: ""
+                            "Sync failed: ${response.code} $errorBody"
                         }
                     }
                 } catch (e: Exception) {

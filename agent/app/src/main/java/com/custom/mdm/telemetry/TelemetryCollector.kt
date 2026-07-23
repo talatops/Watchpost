@@ -112,23 +112,37 @@ class TelemetryCollector(private val context: Context) {
     private fun getInstalledAppsJson(): String {
         return try {
             val pm = context.packageManager
-            // Only include non-system packages to keep the payload lean
+            // Include ALL installed packages (system + user) so the dashboard shows everything
+            // sorted alphabetically by display name, capped at 200 entries
             val packages = pm.getInstalledPackages(0)
-                .filter { pkg ->
-                    val appInfo = pkg.applicationInfo
-                    appInfo != null && (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0
+                .filter { pkg -> pkg.applicationInfo != null }
+                .sortedBy { pkg ->
+                    try {
+                        pm.getApplicationLabel(pkg.applicationInfo!!).toString()
+                    } catch (_: Exception) {
+                        pkg.packageName
+                    }
                 }
-                .take(100) // cap at 100 apps to avoid oversized payloads
+                .take(200)
 
             val arr = JSONArray()
             for (pkg in packages) {
+                val label = try {
+                    pm.getApplicationLabel(pkg.applicationInfo!!).toString()
+                } catch (_: Exception) { pkg.packageName }
+                val isSystem = pkg.applicationInfo?.let {
+                    (it.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                } ?: false
                 val obj = JSONObject().apply {
                     put("package", pkg.packageName)
+                    put("name", label)
                     put("version", pkg.versionName ?: "")
                     put("version_code", pkg.longVersionCode)
+                    put("system", isSystem)
                 }
                 arr.put(obj)
             }
+            Log.d(TAG, "Collected ${arr.length()} installed apps")
             arr.toString()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to read installed apps: ${e.message}")
