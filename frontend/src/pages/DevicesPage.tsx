@@ -161,10 +161,6 @@ export default function DevicesPage() {
         <button onClick={() => setDetail(null)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
           <ChevronLeft className="w-4 h-4" /> Back to Device Hosts
         </button>
-        {feedback && (
-          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>
-        )}
-
         {/* Device header card */}
         <div className="bg-darkCard border border-darkBorder rounded-2xl p-5 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-accentCyan to-accentBlue" />
@@ -270,7 +266,8 @@ export default function DevicesPage() {
               {installedApps.length === 0 ? (
                 <p className="p-8 text-center text-gray-500 text-sm">No installed apps data available</p>
               ) : (
-                <table className="w-full border-collapse text-left">
+                <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left" style={{ minWidth: '600px' }}>
                   <thead>
                     <tr className="border-b border-darkBorder bg-darkBg/30 text-gray-400 text-xs font-semibold uppercase tracking-wider">
                       <th className="p-3">App Name</th>
@@ -299,6 +296,7 @@ export default function DevicesPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
             <p className="text-xs text-gray-500">{filteredApps.length} of {installedApps.length} apps</p>
@@ -388,18 +386,46 @@ export default function DevicesPage() {
         {activeTab === 'activity' && (
           <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-5">Activity Log</h3>
-            <div className="relative border-l border-darkBorder ml-2 pl-5 space-y-5 max-h-[600px] overflow-y-auto">
+            <div className="relative border-l border-darkBorder ml-2 pl-5 space-y-4 max-h-[600px] overflow-y-auto">
               {(!detail.events || detail.events.length === 0) ? (
                 <p className="text-gray-500 text-sm">No events</p>
-              ) : detail.events.map((e, i) => (
-                <div key={i} className="relative">
-                  <div className="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-accentCyan border border-darkBg" />
-                  <p className="text-xs text-gray-400">{new Date(e.created_at).toLocaleString()}</p>
-                  <p className="text-sm font-semibold text-white mt-0.5">{e.event_type}</p>
-                  <pre className="text-xs font-mono text-gray-400 mt-0.5 bg-darkBg/60 p-1.5 rounded border border-darkBorder overflow-x-auto whitespace-pre-wrap">{e.details}</pre>
-                </div>
-              ))}
+              ) : detail.events.map((ev, i) => {
+                const typeLabel: Record<string, { label: string; dot: string }> = {
+                  ENROLLMENT:       { label: 'Device Enrolled',       dot: 'bg-green-400' },
+                  SYNC:             { label: 'Policy Sync',            dot: 'bg-accentCyan' },
+                  COMMAND_QUEUED:   { label: 'Command Sent',           dot: 'bg-blue-400' },
+                  COMPLIANCE_REPORT:{ label: 'Compliance Reported',    dot: 'bg-purple-400' },
+                  COMMAND_EXECUTED: { label: 'Command Executed',       dot: 'bg-green-400' },
+                };
+                const meta = typeLabel[ev.event_type] ?? { label: ev.event_type.replace(/_/g, ' '), dot: 'bg-gray-400' };
+                // Parse command from details JSON for COMMAND_QUEUED
+                let cmdLabel = '';
+                if (ev.event_type === 'COMMAND_QUEUED') {
+                  try {
+                    const d = JSON.parse(ev.details);
+                    const cmd = (d.command ?? '').replace(':', ' — ');
+                    cmdLabel = cmd ? ` · ${cmd}` : '';
+                  } catch { /* ignore */ }
+                }
+                return (
+                  <div key={i} className="relative">
+                    <div className={`absolute -left-[27px] top-1.5 w-2.5 h-2.5 rounded-full ${meta.dot} border border-darkBg`} />
+                    <p className="text-xs text-gray-500">{new Date(ev.created_at).toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-white mt-0.5">{meta.label}{cmdLabel}</p>
+                    {ev.event_type !== 'SYNC' && (
+                      <pre className="text-xs font-mono text-gray-500 mt-0.5 bg-darkBg/60 p-1.5 rounded border border-darkBorder overflow-x-auto whitespace-pre-wrap">{ev.details}</pre>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          </div>
+        )}
+        {/* Fixed bottom-right toast */}
+        {feedback && (
+          <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl animate-fade-in max-w-sm">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{feedback}</span>
           </div>
         )}
       </div>
@@ -417,7 +443,10 @@ export default function DevicesPage() {
       </div>
 
       {feedback && (
-        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{feedback}</span>
+        </div>
       )}
 
       <div className="flex flex-col md:flex-row gap-3">

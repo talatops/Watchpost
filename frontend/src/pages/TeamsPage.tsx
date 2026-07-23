@@ -164,8 +164,16 @@ export default function TeamsPage() {
           className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
           <ChevronLeft className="w-4 h-4" /> Back to Teams
         </button>
-        {feedback && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>}
-        {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{error}</div>}
+        {feedback && (
+          <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+            <span>✓ {feedback}</span>
+          </div>
+        )}
+        {error && (
+          <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-red-500/30 text-red-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+            <span>✕ {error}</span>
+          </div>
+        )}
 
         {/* Team header */}
         <div className="bg-darkCard border border-darkBorder rounded-2xl p-5 relative overflow-hidden">
@@ -373,8 +381,16 @@ export default function TeamsPage() {
         </button>
       </div>
 
-      {feedback && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>}
-      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{error}</div>}
+      {feedback && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+          <span>✓ {feedback}</span>
+        </div>
+      )}
+      {error && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-red-500/30 text-red-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+          <span>✕ {error}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {teams.length === 0 && <p className="text-gray-500 text-sm col-span-3">No teams yet.</p>}

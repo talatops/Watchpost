@@ -47,13 +47,20 @@ function DetailsPanel({ entry }: { entry: ComplianceReportEntry }) {
             <div className="flex items-center gap-3">
               <StatusIcon status={entry.compliance_status} />
               <span className="text-sm font-semibold text-white">
-                {entry.compliance_status === 'COMPLIANT' ? 'All policies passing' :
-                 entry.compliance_status === 'NON_COMPLIANT' ? 'Policy violation detected' :
-                 'Awaiting policy evaluation'}
+                {entry.compliance_status === 'COMPLIANT' ? 'All policies passing — device is compliant' :
+                 entry.compliance_status === 'NON_COMPLIANT' ? 'Policy violation detected — device is non-compliant' :
+                 'No policy has been evaluated yet — commands may still have executed successfully'}
               </span>
             </div>
             <StatusPill status={entry.compliance_status} />
           </div>
+          {/* Note about command status */}
+          {entry.compliance_status === 'PENDING' && (
+            <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300">
+              ℹ️ <strong>PENDING</strong> means no compliance policy has been evaluated on this device yet.
+              Remote commands (LOCK, REBOOT, etc.) execute immediately via FCM and are separate from policy compliance.
+            </div>
+          )}
           {/* Info grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {fields.map(({ label, value, mono }) => (

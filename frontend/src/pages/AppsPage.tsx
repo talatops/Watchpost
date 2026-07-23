@@ -142,8 +142,16 @@ export default function AppsPage() {
         </button>
       </div>
 
-      {feedback && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>}
-      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">{error}</div>}
+      {feedback && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+          <span>✓ {feedback}</span>
+        </div>
+      )}
+      {error && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-red-500/30 text-red-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
+          <span>✕ {error}</span>
+        </div>
+      )}
 
       {/* App list */}
       <div>
