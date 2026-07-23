@@ -93,14 +93,9 @@ services:
       dockerfile: Dockerfile
     container_name: mdm-frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
 volumes:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Shield, Smartphone, Settings, FileText, LogOut,
+  Smartphone, Settings, FileText, LogOut,
   LayoutDashboard, Users, Tag, Zap, BarChart2, Package,
   Database, AlertTriangle, ChevronRight,
 } from 'lucide-react';
@@ -97,11 +97,11 @@ export default function App() {
         <div className="w-full max-w-md bg-darkCard border border-darkBorder p-8 rounded-2xl shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-accentCyan to-accentBlue" />
           <div className="flex flex-col items-center mb-8">
-            <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 mb-3">
-              <Shield className="w-10 h-10 text-accentCyan animate-pulse" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">Watchpost Console</h2>
-            <p className="text-gray-400 text-sm mt-1">Fleet Policy & Device Management</p>
+            <img
+              src="/watchpost-logo.svg"
+              alt="Watchpost"
+              className="w-40 h-40"
+            />
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -141,12 +141,12 @@ export default function App() {
   const groups = [...new Set(NAV.map(n => n.group))];
 
   return (
-    <div className="min-h-screen bg-darkBg flex">
+    <div className="h-screen bg-darkBg flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-60 bg-darkCard border-r border-darkBorder flex flex-col flex-shrink-0">
         {/* Logo */}
         <div className="p-5 border-b border-darkBorder flex items-center gap-3">
-          <Shield className="w-6 h-6 text-accentCyan" />
+          <img src="/watchpost-icon.svg" alt="Watchpost" className="w-7 h-7" />
           <span className="font-bold text-white tracking-wide">Watchpost</span>
         </div>
 
