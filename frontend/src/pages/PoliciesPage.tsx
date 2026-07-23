@@ -1,8 +1,53 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Code, Trash2, Pencil, History, RotateCcw } from 'lucide-react';
+import { Plus, Code, Trash2, Pencil, History, RotateCcw, FileCode2, Shield } from 'lucide-react';
 import { api } from '../hooks/useApi';
 import type { Policy, PolicyVersion } from '../types';
 import Modal from '../components/Modal';
+
+/** Pure-CSS YAML syntax highlighter — no external dependencies */
+function YamlHighlight({ code }: { code: string }) {
+  const lines = code.split('\n');
+  return (
+    <code className="text-xs font-mono leading-relaxed block">
+      {lines.map((line, i) => {
+        // Comment
+        if (/^\s*#/.test(line)) {
+          return <div key={i}><span style={{ color: '#6B7280' }}>{line}</span></div>;
+        }
+        // Key: value
+        const kvMatch = line.match(/^(\s*)([\w_-]+)(\s*:\s*)(.*)$/);
+        if (kvMatch) {
+          const [, indent, key, colon, val] = kvMatch;
+          const isTopKey = /^\s{0,2}[\w_-]+:/.test(line) && !val.trim();
+          const keyColor = isTopKey ? '#00BCD4' : '#93C5FD';
+          let valEl: React.ReactNode = <span style={{ color: '#D1D5DB' }}>{val}</span>;
+          if (/^["']/.test(val.trim())) valEl = <span style={{ color: '#86EFAC' }}>{val}</span>;
+          else if (/^(true|false)$/i.test(val.trim())) valEl = <span style={{ color: '#FCA5A5' }}>{val}</span>;
+          else if (/^\d+$/.test(val.trim())) valEl = <span style={{ color: '#FCD34D' }}>{val}</span>;
+          else if (/^(HIGH|MEDIUM|LOW|CRITICAL|WARN|INFO)$/i.test(val.trim())) valEl = <span style={{ color: '#F9A8D4' }}>{val}</span>;
+          return (
+            <div key={i}>
+              <span>{indent}</span>
+              <span style={{ color: keyColor }}>{key}</span>
+              <span style={{ color: '#6B7280' }}>{colon}</span>
+              {valEl}
+            </div>
+          );
+        }
+        return <div key={i}><span style={{ color: '#9CA3AF' }}>{line}</span></div>;
+      })}
+    </code>
+  );
+}
+
+// Team color palette — each policy gets a deterministic accent color
+const POLICY_ACCENTS = [
+  { border: 'border-l-accentCyan', bg: 'bg-accentCyan/5', icon: 'text-accentCyan', dot: 'bg-accentCyan' },
+  { border: 'border-l-blue-500',   bg: 'bg-blue-500/5',   icon: 'text-blue-400',   dot: 'bg-blue-400' },
+  { border: 'border-l-purple-500', bg: 'bg-purple-500/5', icon: 'text-purple-400', dot: 'bg-purple-400' },
+  { border: 'border-l-green-500',  bg: 'bg-green-500/5',  icon: 'text-green-400',  dot: 'bg-green-400' },
+  { border: 'border-l-amber-500',  bg: 'bg-amber-500/5',  icon: 'text-amber-400',  dot: 'bg-amber-400' },
+];
 
 const DEFAULT_YAML = `policy:
   password_complexity: HIGH
@@ -119,31 +164,77 @@ export default function PoliciesPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {policies.length === 0 && <p className="text-gray-500 text-sm">No policies yet</p>}
-        {policies.map(p => (
-          <div key={p.id} className="bg-darkCard border border-darkBorder rounded-2xl p-5 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-white">{p.name}</h3>
-                <span className="text-xs text-accentCyan bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded font-mono">v{p.version}</span>
-              </div>
-              <p className="text-sm text-gray-400">{p.description}</p>
-              <pre className="mt-3 text-xs text-gray-400 font-mono bg-darkBg/60 p-3 rounded-lg border border-darkBorder max-h-40 overflow-y-auto whitespace-pre-wrap">{p.content_yaml}</pre>
-            </div>
-            <div className="flex gap-2 justify-end mt-4 border-t border-darkBorder pt-3">
-              <button onClick={() => openHistory(p)} className="flex items-center gap-1 px-3 py-1.5 border border-purple-500/30 text-xs text-purple-400 rounded-lg hover:bg-purple-500/10">
-                <History className="w-3.5 h-3.5" /> History
-              </button>
-              <button onClick={() => openEdit(p)} className="flex items-center gap-1 px-3 py-1.5 border border-darkBorder text-xs text-white rounded-lg hover:bg-darkBg">
-                <Pencil className="w-3.5 h-3.5" /> Edit
-              </button>
-              <button onClick={() => del(p.id)} className="flex items-center gap-1 px-3 py-1.5 border border-red-500/20 text-xs text-red-400 rounded-lg hover:bg-red-500/10">
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </button>
-            </div>
+      {/* Empty state */}
+      {policies.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 gap-4 animate-fade-in">
+          <div className="w-20 h-20 rounded-3xl bg-accentCyan/10 border border-accentCyan/20 flex items-center justify-center">
+            <FileCode2 className="w-10 h-10 text-accentCyan/60" />
           </div>
-        ))}
+          <div className="text-center">
+            <p className="text-white font-semibold text-lg">No policies yet</p>
+            <p className="text-gray-500 text-sm mt-1">Create your first policy to start enforcing compliance rules</p>
+          </div>
+          <button onClick={openNew} className="flex items-center gap-2 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold text-sm px-6 py-3 rounded-xl hover:opacity-90 mt-2">
+            <Plus className="w-4 h-4" /> Create First Policy
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {policies.map((p, idx) => {
+          const accent = POLICY_ACCENTS[idx % POLICY_ACCENTS.length];
+          return (
+            <div key={p.id}
+              className={`group bg-darkCard border-l-4 ${accent.border} border-t border-r border-b border-darkBorder rounded-2xl overflow-hidden flex flex-col hover:-translate-y-1 hover:shadow-xl hover:shadow-black/40 transition-all duration-200 animate-fade-in-up`}
+              style={{ animationDelay: `${idx * 60}ms` }}>
+              {/* Card header */}
+              <div className={`${accent.bg} px-5 pt-5 pb-4 border-b border-darkBorder`}>
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-xl bg-darkCard border border-darkBorder flex items-center justify-center`}>
+                      <Shield className={`w-4.5 h-4.5 ${accent.icon}`} style={{ width: '18px', height: '18px' }} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white leading-tight">{p.name}</h3>
+                      {p.description && <p className="text-xs text-gray-400 mt-0.5">{p.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${accent.dot} animate-pulse2`} />
+                    <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border bg-darkCard border-darkBorder ${accent.icon}`}>
+                      v{p.version}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* YAML preview with syntax highlighting */}
+              <div className="flex-1 px-5 py-4">
+                <div className="bg-darkBg/80 rounded-xl border border-darkBorder p-3 max-h-44 overflow-y-auto">
+                  <YamlHighlight code={p.content_yaml} />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="px-5 pb-5 pt-1">
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => openHistory(p)}
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-purple-500/5 border border-purple-500/20 text-purple-400 text-xs font-semibold rounded-xl hover:bg-purple-500/15 hover:border-purple-500/40 hover:scale-[1.02] transition-all">
+                    <History className="w-3.5 h-3.5" /> History
+                  </button>
+                  <button onClick={() => openEdit(p)}
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-accentCyan/5 border border-accentCyan/20 text-accentCyan text-xs font-semibold rounded-xl hover:bg-accentCyan/15 hover:border-accentCyan/40 hover:scale-[1.02] transition-all">
+                    <Pencil className="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <button onClick={() => del(p.id)}
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-red-500/5 border border-red-500/20 text-red-400 text-xs font-semibold rounded-xl hover:bg-red-500/15 hover:border-red-500/40 hover:scale-[1.02] transition-all">
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Create / Edit Policy modal */}
@@ -189,45 +280,73 @@ export default function PoliciesPage() {
               <p className="text-gray-500 text-sm">No version history available.</p>
             )}
             {!historyLoading && versions.length > 0 && (
-              <div className="divide-y divide-darkBorder">
-                {versions.map(v => (
-                  <div key={v.id} className="py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className={`text-xs font-mono px-2 py-0.5 rounded border ${
-                          v.version === historyPolicy.version
-                            ? 'bg-accentCyan/10 border-accentCyan/30 text-accentCyan'
-                            : 'bg-darkBg border-darkBorder text-gray-400'
+              <div className="relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[19px] top-0 bottom-0 w-px bg-gradient-to-b from-accentCyan/40 via-darkBorder to-transparent" />
+                <div className="space-y-1">
+                  {versions.map((v, vi) => {
+                    const isCurrent = v.version === historyPolicy?.version;
+                    const isPreview = previewVersion?.id === v.id;
+                    return (
+                      <div key={v.id} className="relative pl-10 animate-fade-in-up" style={{ animationDelay: `${vi * 50}ms` }}>
+                        {/* Timeline dot */}
+                        <div className={`absolute left-[13px] top-4 w-3 h-3 rounded-full border-2 ${
+                          isCurrent
+                            ? 'bg-accentCyan border-accentCyan shadow-[0_0_8px_#00D2FF80]'
+                            : 'bg-darkBg border-darkBorder'
+                        }`} />
+                        <div className={`rounded-xl border p-3 mb-2 transition-all duration-150 ${
+                          isCurrent
+                            ? 'bg-accentCyan/5 border-accentCyan/30'
+                            : 'bg-darkBg/40 border-darkBorder hover:border-gray-600'
                         }`}>
-                          v{v.version}
-                          {v.version === historyPolicy.version && ' (current)'}
-                        </span>
-                        <span className="text-xs text-gray-500">{v.created_at}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+                                isCurrent
+                                  ? 'bg-accentCyan/15 border-accentCyan/40 text-accentCyan'
+                                  : 'bg-darkCard border-darkBorder text-gray-400'
+                              }`}>
+                                v{v.version}
+                              </span>
+                              {isCurrent && (
+                                <span className="text-[10px] font-semibold text-accentCyan bg-accentCyan/10 px-2 py-0.5 rounded-full border border-accentCyan/20">
+                                  CURRENT
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-500 font-mono">{v.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => setPreviewVersion(isPreview ? null : v)}
+                                className={`text-xs px-3 py-1 rounded-lg border transition-all ${
+                                  isPreview
+                                    ? 'bg-accentCyan/10 border-accentCyan/30 text-accentCyan'
+                                    : 'border-darkBorder text-gray-400 hover:bg-darkCard'
+                                }`}
+                              >
+                                {isPreview ? 'Hide' : 'Preview'}
+                              </button>
+                              {!isCurrent && (
+                                <button
+                                  onClick={() => rollback(historyPolicy!.id, v.version)}
+                                  className="flex items-center gap-1 text-xs px-3 py-1 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/10 transition-all"
+                                >
+                                  <RotateCcw className="w-3 h-3" /> Rollback
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {isPreview && (
+                            <div className="mt-3 bg-darkBg/80 rounded-lg border border-darkBorder p-3 max-h-52 overflow-y-auto animate-slide-down">
+                              <YamlHighlight code={v.content_yaml} />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setPreviewVersion(previewVersion?.id === v.id ? null : v)}
-                          className="text-xs px-2 py-1 border border-darkBorder text-gray-400 rounded hover:bg-darkBg"
-                        >
-                          {previewVersion?.id === v.id ? 'Hide' : 'Preview'}
-                        </button>
-                        {v.version !== historyPolicy.version && (
-                          <button
-                            onClick={() => rollback(historyPolicy.id, v.version)}
-                            className="flex items-center gap-1 text-xs px-2 py-1 border border-purple-500/30 text-purple-400 rounded hover:bg-purple-500/10"
-                          >
-                            <RotateCcw className="w-3 h-3" /> Rollback
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {previewVersion?.id === v.id && (
-                      <pre className="mt-2 text-xs text-gray-400 font-mono bg-darkBg/60 p-3 rounded-lg border border-darkBorder max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {v.content_yaml}
-                      </pre>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

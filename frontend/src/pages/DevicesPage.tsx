@@ -162,7 +162,7 @@ export default function DevicesPage() {
           <ChevronLeft className="w-4 h-4" /> Back to Device Hosts
         </button>
         {/* Device header card */}
-        <div className="bg-darkCard border border-darkBorder rounded-2xl p-5 relative overflow-hidden">
+        <div className="bg-darkCard border border-darkBorder rounded-2xl p-5 relative overflow-hidden animate-fade-in-up">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-accentCyan to-accentBlue" />
           <div className="flex justify-between items-start">
             <div>
@@ -192,10 +192,10 @@ export default function DevicesPage() {
 
         {/* ── Overview tab ──────────────────────────────────────────────── */}
         {activeTab === 'overview' && (
-          <div className="space-y-5">
+          <div className="space-y-5 animate-fade-in">
             {/* Quick-stat cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-darkCard border border-darkBorder rounded-2xl p-4 flex items-center gap-3">
+              <div className="bg-darkCard border border-darkBorder rounded-2xl p-4 flex items-center gap-3 hover:-translate-y-0.5 transition-transform duration-150">
                 <Battery className="w-8 h-8 text-accentCyan shrink-0" />
                 <div>
                   <p className="text-xs text-gray-400 uppercase">Battery</p>
@@ -308,20 +308,45 @@ export default function DevicesPage() {
           <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Remote Commands</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[
-                { action: 'SYNC',   label: 'Sync Policies', icon: <RefreshCw className="w-5 h-5 text-accentCyan" /> },
-                { action: 'LOCK',   label: 'Lock Screen',   icon: <Lock      className="w-5 h-5 text-amber-500" /> },
-                { action: 'REBOOT', label: 'Reboot',        icon: <Power     className="w-5 h-5 text-blue-400" /> },
-              ].map(btn => (
-                <button
-                  key={btn.action}
-                  onClick={() => sendAction(dev.id, btn.action)}
-                  className="flex flex-col items-center justify-center p-4 border border-darkBorder hover:border-gray-500 bg-darkBg rounded-xl transition-all gap-2"
-                >
-                  {btn.icon}
-                  <span className="text-xs font-semibold text-white">{btn.label}</span>
-                </button>
-              ))}
+              {/* SYNC */}
+              <button
+                onClick={() => sendAction(dev.id, 'SYNC')}
+                className="group flex flex-col items-center justify-center p-5 bg-accentCyan/5 border border-accentCyan/20 hover:bg-accentCyan/10 hover:border-accentCyan/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+              >
+                <div className="w-12 h-12 rounded-xl bg-accentCyan/10 flex items-center justify-center group-hover:bg-accentCyan/20 transition-colors">
+                  <RefreshCw className="w-6 h-6 text-accentCyan" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-white">Sync Policies</p>
+                  <p className="text-[10px] text-accentCyan/70 mt-0.5">Pull latest config</p>
+                </div>
+              </button>
+              {/* LOCK */}
+              <button
+                onClick={() => sendAction(dev.id, 'LOCK')}
+                className="group flex flex-col items-center justify-center p-5 bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+              >
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                  <Lock className="w-6 h-6 text-amber-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-white">Lock Screen</p>
+                  <p className="text-[10px] text-amber-400/70 mt-0.5">Immediate lock</p>
+                </div>
+              </button>
+              {/* REBOOT */}
+              <button
+                onClick={() => sendAction(dev.id, 'REBOOT')}
+                className="group flex flex-col items-center justify-center p-5 bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                  <Power className="w-6 h-6 text-blue-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-white">Reboot</p>
+                  <p className="text-[10px] text-blue-400/70 mt-0.5">Restart device</p>
+                </div>
+              </button>
               {/* Corporate Wipe */}
               <button
                 onClick={() => {
@@ -329,11 +354,15 @@ export default function DevicesPage() {
                     sendAction(dev.id, 'WIPE', 'CORPORATE');
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 border border-orange-500/30 hover:border-orange-500/60 bg-darkBg rounded-xl transition-all gap-2"
+                className="group flex flex-col items-center justify-center p-5 bg-orange-500/5 border border-orange-500/20 hover:bg-orange-500/10 hover:border-orange-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
               >
-                <Trash2 className="w-5 h-5 text-orange-400" />
-                <span className="text-xs font-semibold text-white">Corporate Wipe</span>
-                <span className="text-[10px] text-orange-400/70">Work data only</span>
+                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                  <Trash2 className="w-6 h-6 text-orange-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-white">Corporate Wipe</p>
+                  <p className="text-[10px] text-orange-400/70 mt-0.5">Work data only</p>
+                </div>
               </button>
               {/* Factory Reset */}
               <button
@@ -342,11 +371,15 @@ export default function DevicesPage() {
                     sendAction(dev.id, 'WIPE', 'FULL');
                   }
                 }}
-                className="flex flex-col items-center justify-center p-4 border border-red-500/30 hover:border-red-500/60 bg-darkBg rounded-xl transition-all gap-2"
+                className="group flex flex-col items-center justify-center p-5 bg-red-500/5 border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
               >
-                <Trash2 className="w-5 h-5 text-red-500" />
-                <span className="text-xs font-semibold text-white">Factory Reset</span>
-                <span className="text-[10px] text-red-400/70">Full wipe</span>
+                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-white">Factory Reset</p>
+                  <p className="text-[10px] text-red-400/70 mt-0.5">Full wipe ⚠️</p>
+                </div>
               </button>
             </div>
           </div>
@@ -386,7 +419,8 @@ export default function DevicesPage() {
         {activeTab === 'activity' && (
           <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-5">Activity Log</h3>
-            <div className="relative border-l border-darkBorder ml-2 pl-5 space-y-4 max-h-[600px] overflow-y-auto">
+            <div className="relative ml-2 pl-5 space-y-4 max-h-[600px] overflow-y-auto"
+              style={{ borderLeft: '1px solid', borderImage: 'linear-gradient(to bottom, #00D2FF40, #222C3D, transparent) 1' }}>
               {(!detail.events || detail.events.length === 0) ? (
                 <p className="text-gray-500 text-sm">No events</p>
               ) : detail.events.map((ev, i) => {
@@ -536,8 +570,10 @@ export default function DevicesPage() {
             {(data.data ?? []).length === 0 && !loading && (
               <tr><td colSpan={8} className="p-8 text-center text-gray-500">No devices found</td></tr>
             )}
-            {(data.data ?? []).map(d => (
-              <tr key={d.id} className={`hover:bg-darkBg/40 transition-colors ${selected.has(d.id) ? 'bg-accentBlue/5' : ''}`}>
+            {(data.data ?? []).map((d, idx) => (
+              <tr key={d.id}
+                className={`hover:bg-darkBg/40 transition-colors animate-fade-in-up ${selected.has(d.id) ? 'bg-accentBlue/5' : ''}`}
+                style={{ animationDelay: `${idx * 30}ms` }}>
                 <td className="p-3"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="rounded" /></td>
                 <td className="p-3 font-semibold text-white">{d.model}</td>
                 <td className="p-3 font-mono text-xs">{d.serial_number}</td>
