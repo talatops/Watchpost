@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    android:fillViewport="true">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🛡️"
+                android:textSize="32sp"
+                android:layout_marginEnd="12dp" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Watchpost Agent"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Device Fleet Agent"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+        </LinearLayout>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider"
+            android:layout_marginBottom="20dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_background"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ENROLLMENT STATUS"
+                android:textSize="10sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="8dp" />
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Status: UNENROLLED"
+                android:textSize="16sp"
+                android:textColor="@color/status_error"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/serialText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Serial: loading..."
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="monospace"
+                android:layout_marginTop="4dp" />
+        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SERVER URL"
+            android:textSize="10sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="6dp" />
+        <EditText
+            android:id="@+id/serverUrlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="http://10.0.2.2:8080"
+            android:text="http://10.0.2.2:8080"
+            android:inputType="textUri"
+            android:padding="14dp"
+            android:background="@drawable/input_background"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_hint"
+            android:fontFamily="monospace"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ENROLLMENT TOKEN"
+            android:textSize="10sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="6dp" />
+        <EditText
+            android:id="@+id/tokenInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Paste enrollment token"
+            android:text="env-token-xyz-123"
+            android:inputType="text"
+            android:padding="14dp"
+            android:background="@drawable/input_background"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_hint"
+            android:fontFamily="monospace"
+            android:textSize="14sp"
+            android:layout_marginBottom="24dp" />
+        <Button
+            android:id="@+id/enrollButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="ENROLL DEVICE"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:backgroundTint="@color/accent_cyan"
+            android:layout_marginBottom="12dp" />
+        <Button
+            android:id="@+id/syncButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="FORCE POLICY SYNC"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:backgroundTint="@color/accent_blue"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+        <TextView
+            android:id="@+id/debugText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="monospace"
+            android:padding="12dp"
+            android:background="@drawable/card_background"
+            android:layout_marginTop="8dp"
+            android:visibility="gone" />
+    </LinearLayout>
+</ScrollView>

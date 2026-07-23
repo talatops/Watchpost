@@ -1,0 +1,379 @@
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Search, RefreshCw, Lock, Power, Trash2, ChevronLeft, ChevronRight,
+  X, Tag,
+} from 'lucide-react';
+import { api } from '../hooks/useApi';
+import type { Device, DevicesPage, DeviceDetail, Label, Team, Policy } from '../types';
+import StatusBadge from '../components/StatusBadge';
+import Modal from '../components/Modal';
+
+export default function DevicesPage() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState('');
+  const [data, setData] = useState<DevicesPage>({ data: [], total: 0, page: 1, page_size: 50 });
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<DeviceDetail | null>(null);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [feedback, setFeedback] = useState('');
+  const [showBulkTeam, setShowBulkTeam] = useState(false);
+  const [showBulkPolicy, setShowBulkPolicy] = useState(false);
+  const [bulkTeamId, setBulkTeamId] = useState('');
+  const [bulkPolicyId, setBulkPolicyId] = useState('');
+
+  const flash = (msg: string) => { setFeedback(msg); setTimeout(() => setFeedback(''), 4000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      let path = `/devices?page=${page}&page_size=50`;
+      if (search) path += `&search=${encodeURIComponent(search)}`;
+      if (statusFilter) path += `&status=${statusFilter}`;
+
+      let result: DevicesPage;
+      if (selectedLabel) {
+        // label filter: get IDs from label endpoint, then filter client-side in list
+        const labelDevices = await api.get<Device[]>(`/labels/${selectedLabel}/devices`);
+        result = { data: (labelDevices ?? []), total: (labelDevices ?? []).length, page: 1, page_size: 50 };
+      } else {
+        const raw = await api.get<DevicesPage>(path);
+        result = { ...raw, data: raw.data ?? [] };
+      }
+      setData(result);
+    } catch (e: unknown) {
+      flash((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, statusFilter, selectedLabel]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    api.get<Label[]>('/labels').then(l => setLabels(l || [])).catch(() => {});
+    api.get<Team[]>('/teams').then(t => setTeams(t || [])).catch(() => {});
+    api.get<Policy[]>('/policies').then(p => setPolicies(p || [])).catch(() => {});
+  }, []);
+
+  const loadDetail = async (id: string) => {
+    try {
+      const d = await api.get<DeviceDetail>(`/devices/${id}`);
+      setDetail(d);
+    } catch (e: unknown) { flash((e as Error).message); }
+  };
+
+  const sendAction = async (deviceId: string, action: string, wipeType?: string) => {
+    try {
+      const body: Record<string, string> = { action };
+      if (wipeType) body.wipe_type = wipeType;
+      await api.post(`/devices/${deviceId}/actions`, body);
+      const label = action === 'WIPE'
+        ? `${wipeType === 'CORPORATE' ? 'Corporate Wipe' : 'Factory Reset'} command queued`
+        : `${action} command queued successfully`;
+      flash(label);
+      loadDetail(deviceId);
+    } catch (e: unknown) { flash((e as Error).message); }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  const selectAll = () => {
+    if (selected.size === (data.data ?? []).length) setSelected(new Set());
+    else setSelected(new Set((data.data ?? []).map(d => d.id)));
+  };
+
+  const bulkAction = async (action: string) => {
+    try {
+      await api.post('/devices/bulk/action', { device_ids: [...selected], action });
+      flash(`Bulk ${action} queued for ${selected.size} devices`);
+      setSelected(new Set());
+    } catch (e: unknown) { flash((e as Error).message); }
+  };
+
+  const bulkAssignTeam = async () => {
+    try {
+      await api.post('/devices/bulk/assign-team', { device_ids: [...selected], team_id: bulkTeamId });
+      flash(`Assigned ${selected.size} devices to team`);
+      setSelected(new Set()); setShowBulkTeam(false); load();
+    } catch (e: unknown) { flash((e as Error).message); }
+  };
+
+  const bulkAssignPolicy = async () => {
+    try {
+      await api.post('/devices/bulk/assign-policy', { device_ids: [...selected], policy_id: bulkPolicyId });
+      flash(`Policy pushed to ${selected.size} devices`);
+      setSelected(new Set()); setShowBulkPolicy(false); load();
+    } catch (e: unknown) { flash((e as Error).message); }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(data.total / 50));
+
+  if (detail) {
+    const dev = detail.device;
+    return (
+      <div className="space-y-5">
+        <button onClick={() => setDetail(null)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1">
+          <ChevronLeft className="w-4 h-4" /> Back to Device Hosts
+        </button>
+        {feedback && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Left: device info */}
+          <div className="lg:col-span-2 space-y-5">
+            <div className="bg-darkCard border border-darkBorder rounded-2xl p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-accentCyan to-accentBlue" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold text-white">{dev.model}</h2>
+                  <p className="text-xs font-mono text-gray-400 mt-1">{dev.id}</p>
+                </div>
+                <StatusBadge status={dev.enrollment_status} />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5 mt-5 border-t border-darkBorder pt-5 text-sm">
+                {[
+                  ['Serial', dev.serial_number],
+                  ['OS Version', dev.os_version],
+                  ['Patch Level', dev.patch_level],
+                  ['Last Contact', new Date(dev.last_seen).toLocaleString()],
+                  ['Battery', dev.battery_level != null ? `${dev.battery_level}%` : 'N/A'],
+                  ['Storage Free', dev.storage_available != null ? `${(dev.storage_available / 1e9).toFixed(1)} GB` : 'N/A'],
+                  ['Wi-Fi SSID', dev.wifi_ssid || 'N/A'],
+                  ['Team', dev.team_id || 'Unassigned'],
+                ].map(([k, v]) => (
+                  <div key={k}><p className="text-xs text-gray-400 uppercase">{k}</p><p className="font-semibold text-white mt-0.5 truncate">{v}</p></div>
+                ))}
+              </div>
+            </div>
+
+            {/* Remote actions */}
+            <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Remote Commands</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  { action: 'SYNC',  label: 'Sync Policies',   icon: <RefreshCw className="w-5 h-5 text-accentCyan" />,  wipeType: undefined },
+                  { action: 'LOCK',  label: 'Lock Screen',     icon: <Lock      className="w-5 h-5 text-amber-500" />,  wipeType: undefined },
+                  { action: 'REBOOT', label: 'Reboot',         icon: <Power     className="w-5 h-5 text-blue-400" />,   wipeType: undefined },
+                ].map(btn => (
+                  <button key={btn.action} onClick={() => sendAction(dev.id, btn.action)}
+                    className="flex flex-col items-center justify-center p-4 border border-darkBorder hover:border-gray-500 bg-darkBg rounded-xl transition-all gap-2">
+                    {btn.icon}
+                    <span className="text-xs font-semibold text-white">{btn.label}</span>
+                  </button>
+                ))}
+                {/* Corporate Wipe — removes managed/work data only */}
+                <button onClick={() => {
+                  if (confirm('Corporate Wipe removes all managed data but preserves personal data. Continue?')) {
+                    sendAction(dev.id, 'WIPE', 'CORPORATE');
+                  }
+                }} className="flex flex-col items-center justify-center p-4 border border-orange-500/30 hover:border-orange-500/60 bg-darkBg rounded-xl transition-all gap-2">
+                  <Trash2 className="w-5 h-5 text-orange-400" />
+                  <span className="text-xs font-semibold text-white">Corporate Wipe</span>
+                  <span className="text-[10px] text-orange-400/70">Work data only</span>
+                </button>
+                {/* Factory Reset — full wipe */}
+                <button onClick={() => {
+                  if (confirm('⚠️ Factory Reset will erase ALL data on the device. This cannot be undone. Continue?')) {
+                    sendAction(dev.id, 'WIPE', 'FULL');
+                  }
+                }} className="flex flex-col items-center justify-center p-4 border border-red-500/30 hover:border-red-500/60 bg-darkBg rounded-xl transition-all gap-2">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                  <span className="text-xs font-semibold text-white">Factory Reset</span>
+                  <span className="text-[10px] text-red-400/70">Full wipe</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Compliance */}
+            <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Policy Compliance</h3>
+              {(!detail.policy_compliance || detail.policy_compliance.length === 0) ? (
+                <p className="text-gray-500 text-sm">No policy compliance records</p>
+              ) : (
+                <div className="divide-y divide-darkBorder">
+                  {detail.policy_compliance.map((pc, i) => (
+                    <div key={i} className="py-3 flex justify-between items-center text-sm">
+                      <div>
+                        <p className="font-semibold text-white text-xs font-mono">{pc.policy_id.slice(0, 16)}…</p>
+                        {pc.error_message && <p className="text-xs text-red-400 mt-0.5">{pc.error_message}</p>}
+                      </div>
+                      <StatusBadge status={pc.status} small />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: event timeline */}
+          <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-5">Activity Log</h3>
+            <div className="relative border-l border-darkBorder ml-2 pl-5 space-y-5 max-h-[600px] overflow-y-auto">
+              {(!detail.events || detail.events.length === 0) ? (
+                <p className="text-gray-500 text-sm">No events</p>
+              ) : detail.events.map((e, i) => (
+                <div key={i} className="relative">
+                  <div className="absolute -left-[27px] top-1 w-2.5 h-2.5 rounded-full bg-accentCyan border border-darkBg" />
+                  <p className="text-xs text-gray-400">{new Date(e.created_at).toLocaleString()}</p>
+                  <p className="text-sm font-semibold text-white mt-0.5">{e.event_type}</p>
+                  <pre className="text-xs font-mono text-gray-400 mt-0.5 bg-darkBg/60 p-1.5 rounded border border-darkBorder overflow-x-auto whitespace-pre-wrap">{e.details}</pre>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Device Hosts</h1>
+          <p className="text-gray-400 text-sm mt-1">{data.total} devices total</p>
+        </div>
+      </div>
+
+      {feedback && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">{feedback}</div>}
+
+      <div className="flex flex-col md:flex-row gap-3">
+        {/* Search */}
+        <div className="flex-1 relative">
+          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3.5" />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search by serial or model…"
+            className="w-full bg-darkCard border border-darkBorder rounded-lg pl-10 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accentCyan" />
+        </div>
+
+        {/* Status filter */}
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+          className="bg-darkCard border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan">
+          <option value="">All Statuses</option>
+          <option value="ENROLLED">Enrolled</option>
+          <option value="PENDING">Pending</option>
+          <option value="UNENROLLED">Unenrolled</option>
+        </select>
+
+        {/* Label filter */}
+        <div className="relative">
+          <select value={selectedLabel} onChange={e => { setSelectedLabel(e.target.value); setPage(1); }}
+            className="bg-darkCard border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan appearance-none pr-8">
+            <option value="">All Labels</option>
+            {labels.map(l => <option key={l.id} value={l.id}>{l.name} ({l.device_count})</option>)}
+          </select>
+          <Tag className="w-3.5 h-3.5 text-gray-400 absolute right-3 top-3.5 pointer-events-none" />
+        </div>
+
+        <button onClick={load} className="flex items-center gap-2 px-4 py-3 border border-darkBorder text-gray-300 rounded-lg text-sm hover:bg-darkBg transition-colors">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-accentBlue/10 border border-accentBlue/30 rounded-xl text-sm">
+          <span className="text-white font-semibold">{selected.size} selected</span>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => bulkAction('SYNC')} className="px-3 py-1.5 bg-accentCyan/10 border border-accentCyan/30 text-accentCyan rounded-lg hover:bg-accentCyan/20">Sync All</button>
+            <button onClick={() => bulkAction('LOCK')} className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/20">Lock All</button>
+            <button onClick={() => bulkAction('REBOOT')} className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20">Reboot All</button>
+            <button onClick={() => bulkAction('WIPE')} className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20">Wipe All</button>
+            <button onClick={() => setShowBulkTeam(true)} className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/20">Assign Team</button>
+            <button onClick={() => setShowBulkPolicy(true)} className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20">Push Policy</button>
+          </div>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Device table */}
+      <div className="bg-darkCard border border-darkBorder rounded-2xl overflow-hidden">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="border-b border-darkBorder bg-darkBg/30 text-gray-400 text-xs font-semibold uppercase tracking-wider">
+              <th className="p-3 w-10"><input type="checkbox" checked={selected.size === (data.data ?? []).length && (data.data ?? []).length > 0} onChange={selectAll} className="rounded" /></th>
+              <th className="p-3">Device</th>
+              <th className="p-3">Serial</th>
+              <th className="p-3">OS</th>
+              <th className="p-3">Battery</th>
+              <th className="p-3">Last Seen</th>
+              <th className="p-3">Status</th>
+              <th className="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-darkBorder text-sm text-gray-300">
+            {(data.data ?? []).length === 0 && !loading && (
+              <tr><td colSpan={8} className="p-8 text-center text-gray-500">No devices found</td></tr>
+            )}
+            {(data.data ?? []).map(d => (
+              <tr key={d.id} className={`hover:bg-darkBg/40 transition-colors ${selected.has(d.id) ? 'bg-accentBlue/5' : ''}`}>
+                <td className="p-3"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="rounded" /></td>
+                <td className="p-3 font-semibold text-white">{d.model}</td>
+                <td className="p-3 font-mono text-xs">{d.serial_number}</td>
+                <td className="p-3">{d.os_version}</td>
+                <td className="p-3">{d.battery_level != null ? `${d.battery_level}%` : '—'}</td>
+                <td className="p-3 text-xs text-gray-400">{new Date(d.last_seen).toLocaleString()}</td>
+                <td className="p-3"><StatusBadge status={d.enrollment_status} small /></td>
+                <td className="p-3 text-right">
+                  <button onClick={() => loadDetail(d.id)} className="text-xs text-accentCyan hover:underline font-semibold">Manage →</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">Page {page} of {totalPages} ({data.total} total)</span>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="p-2 border border-darkBorder rounded-lg text-gray-400 hover:bg-darkBg disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="p-2 border border-darkBorder rounded-lg text-gray-400 hover:bg-darkBg disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk assign team modal */}
+      {showBulkTeam && (
+        <Modal title={`Assign ${selected.size} Devices to Team`} onClose={() => setShowBulkTeam(false)}>
+          <div className="space-y-4">
+            <select value={bulkTeamId} onChange={e => setBulkTeamId(e.target.value)}
+              className="w-full bg-darkBg border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan">
+              <option value="">Select team…</option>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <button onClick={bulkAssignTeam} disabled={!bulkTeamId}
+              className="w-full py-3 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold rounded-lg disabled:opacity-40">Assign</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Bulk push policy modal */}
+      {showBulkPolicy && (
+        <Modal title={`Push Policy to ${selected.size} Devices`} onClose={() => setShowBulkPolicy(false)}>
+          <div className="space-y-4">
+            <select value={bulkPolicyId} onChange={e => setBulkPolicyId(e.target.value)}
+              className="w-full bg-darkBg border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan">
+              <option value="">Select policy…</option>
+              {policies.map(p => <option key={p.id} value={p.id}>{p.name} (v{p.version})</option>)}
+            </select>
+            <button onClick={bulkAssignPolicy} disabled={!bulkPolicyId}
+              className="w-full py-3 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold rounded-lg disabled:opacity-40">Push Policy</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

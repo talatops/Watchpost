@@ -1,0 +1,128 @@
+# =============================================================================
+# Watchpost — .gitignore
+# =============================================================================
+
+# --- Secrets & Environment ---------------------------------------------------
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+*.env
+!.env.example
+
+# Credentials and key files
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+firebase-adminsdk*.json
+*credentials*.json
+*secret*.json
+secrets/
+.secrets/
+
+# --- Go Backend --------------------------------------------------------------
+backend/mdm-backend
+backend/watchpost-backend
+backend/*.exe
+backend/tmp/
+backend/vendor/
+
+# --- Frontend ----------------------------------------------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/build/
+frontend/.vite/
+
+# --- Android Agent -----------------------------------------------------------
+agent/.gradle/
+agent/build/
+agent/app/build/
+agent/local.properties
+agent/.idea/
+agent/*.iml
+agent/**/*.hprof
+*.hprof
+
+# --- Docker ------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# --- Database & Storage ------------------------------------------------------
+*.sql.bak
+pgdata/
+redisdata/
+miniadata/
+*.dump
+*.backup
+
+# --- IDE & Editor ------------------------------------------------------------
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- OS Files ----------------------------------------------------------------
+*~
+*.swp
+*.swo
+*.orig
+*.bak
+
+# --- Logs & Temp -------------------------------------------------------------
+*.log
+*.logs
+logs/
+tmp/
+temp/
+.tmp/
+coverage/
+*.out
+*.test
+
+# --- Certificates (never commit real certs) ----------------------------------
+certs/
+ssl/
+*.crt
+*.cer
+# Allow example/self-signed test certs
+!certs/example/
+!*.example.crt
+
+# --- CI / Build Artifacts ----------------------------------------------------
+.github/workflows/*.local
+dist/
+release/
+bin/
+*.tar.gz
+*.zip
+*.gz
+
+# --- Terraform / Infrastructure (if added later) ----------------------------
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+
+# --- Documentation
+
+docs/
+

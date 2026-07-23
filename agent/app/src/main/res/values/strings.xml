@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Watchpost Agent</string>
+    <string name="device_admin_description">Watchpost DPC enforcement client. Permits remote screen locking, camera constraints, password complexity controls, and silent app deployments.</string>
+</resources>

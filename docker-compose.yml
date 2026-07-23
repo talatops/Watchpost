@@ -1,0 +1,109 @@
+# docker-compose.yml — Watchpost full stack
+# All secrets are read from .env — copy .env.example to .env and fill in values.
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: mdm-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-WatchpostPostgresLocalDev2024}
+      POSTGRES_DB: ${DB_NAME:-watchpost_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-watchpost_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: mdm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    container_name: mdm-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-watchpostminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-WatchpostMinioStoragePass2024}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniadata:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mdm-backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-host=postgres port=5432 user=postgres password=WatchpostPostgresLocalDev2024 dbname=watchpost_db sslmode=disable}
+      JWT_SECRET: ${JWT_SECRET}
+      DEVICE_JWT_SECRET: ${DEVICE_JWT_SECRET}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-openmdm-bf458}
+      FCM_SERVICE_ACCOUNT_FILE: ${FCM_SERVICE_ACCOUNT_FILE:-}
+      FCM_SERVICE_ACCOUNT_JSON: ${FCM_SERVICE_ACCOUNT_JSON:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      SERVER_URL: ${SERVER_URL:-http://localhost:8080}
+      PORT: ${PORT:-8080}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-true}
+      SMTP_FROM: ${SMTP_FROM:-Watchpost <noreply@localhost>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-watchpostminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-WatchpostMinioStoragePass2024}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_BUCKET_APPS: ${MINIO_BUCKET_APPS:-watchpost-apps}
+      MINIO_BUCKET_OTA: ${MINIO_BUCKET_OTA:-watchpost-ota}
+      MINIO_BUCKET_EXPORTS: ${MINIO_BUCKET_EXPORTS:-watchpost-exports}
+      DEFAULT_ENROLLMENT_TOKEN: ${DEFAULT_ENROLLMENT_TOKEN:-WatchpostAgent2024DeviceEnrollSecureTokenABC123XYZ}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-WatchpostAdmin2024ChangeMe}
+      SEED_ORG_NAME: ${SEED_ORG_NAME:-Watchpost Organization}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mdm-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniadata:
