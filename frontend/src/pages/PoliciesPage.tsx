@@ -3,6 +3,8 @@ import { Plus, Code, Trash2, Pencil, History, RotateCcw, FileCode2, Shield } fro
 import { api } from '../hooks/useApi';
 import type { Policy, PolicyVersion } from '../types';
 import Modal from '../components/Modal';
+import Btn from '../components/Btn';
+import { ToastContainer, useToast } from '../components/Toast';
 
 /** Pure-CSS YAML syntax highlighter — no external dependencies */
 function YamlHighlight({ code }: { code: string }) {
@@ -63,8 +65,6 @@ export default function PoliciesPage() {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [yaml, setYaml] = useState(DEFAULT_YAML);
-  const [feedback, setFeedback] = useState('');
-  const [error, setError] = useState('');
 
   // Version history state
   const [historyPolicy, setHistoryPolicy] = useState<Policy | null>(null);
@@ -72,13 +72,10 @@ export default function PoliciesPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [previewVersion, setPreviewVersion] = useState<PolicyVersion | null>(null);
 
-  const flash = (msg: string, isErr = false) => {
-    isErr ? setError(msg) : setFeedback(msg);
-    setTimeout(() => isErr ? setError('') : setFeedback(''), 4000);
-  };
+  const { toasts, remove, flash, flashErr } = useToast();
 
   const load = () =>
-    api.get<Policy[]>('/policies').then(p => setPolicies(p || [])).catch(e => flash(e.message, true));
+    api.get<Policy[]>('/policies').then(p => setPolicies(p || [])).catch(e => flashErr(e.message));
 
   useEffect(() => { load(); }, []);
 
@@ -101,7 +98,7 @@ export default function PoliciesPage() {
       }
       setShowModal(false);
       load();
-    } catch (e: unknown) { flash((e as Error).message, true); }
+    } catch (e: unknown) { flashErr((e as Error).message); }
   };
 
   const del = async (id: string) => {
@@ -110,7 +107,7 @@ export default function PoliciesPage() {
       await api.delete(`/policies/${id}`);
       flash('Policy deleted');
       load();
-    } catch (e: unknown) { flash((e as Error).message, true); }
+    } catch (e: unknown) { flashErr((e as Error).message); }
   };
 
   // ---- History & Rollback -------------------------------------------------
@@ -123,7 +120,7 @@ export default function PoliciesPage() {
       const v = await api.get<PolicyVersion[]>(`/policies/${p.id}/versions`);
       setVersions(v || []);
     } catch (e: unknown) {
-      flash((e as Error).message, true);
+      flashErr((e as Error).message);
       setVersions([]);
     } finally {
       setHistoryLoading(false);
@@ -138,7 +135,7 @@ export default function PoliciesPage() {
       setHistoryPolicy(null);
       setVersions([]);
       load();
-    } catch (e: unknown) { flash((e as Error).message, true); }
+    } catch (e: unknown) { flashErr((e as Error).message); }
   };
 
   return (
@@ -148,21 +145,10 @@ export default function PoliciesPage() {
           <h1 className="text-2xl font-bold text-white">Compliance Policies</h1>
           <p className="text-gray-400 text-sm mt-1">Policy-as-Code — YAML declarative configuration</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold text-sm px-5 py-3 rounded-lg hover:opacity-90">
-          <Plus className="w-4 h-4" /> New Policy
-        </button>
+        <Btn onClick={openNew} icon={<Plus className="w-4 h-4" />}>New Policy</Btn>
       </div>
 
-      {feedback && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
-          <span>✓ {feedback}</span>
-        </div>
-      )}
-      {error && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-red-500/30 text-red-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
-          <span>✕ {error}</span>
-        </div>
-      )}
+      <ToastContainer toasts={toasts} onRemove={remove} />
 
       {/* Empty state */}
       {policies.length === 0 && (
@@ -174,9 +160,9 @@ export default function PoliciesPage() {
             <p className="text-white font-semibold text-lg">No policies yet</p>
             <p className="text-gray-500 text-sm mt-1">Create your first policy to start enforcing compliance rules</p>
           </div>
-          <button onClick={openNew} className="flex items-center gap-2 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold text-sm px-6 py-3 rounded-xl hover:opacity-90 mt-2">
-            <Plus className="w-4 h-4" /> Create First Policy
-          </button>
+          <Btn onClick={openNew} icon={<Plus className="w-4 h-4" />} className="mt-2">
+            Create First Policy
+          </Btn>
         </div>
       )}
 
@@ -242,26 +228,27 @@ export default function PoliciesPage() {
         <Modal title={editing ? 'Edit Policy' : 'Create Policy'} onClose={() => setShowModal(false)} wide>
           <form onSubmit={save} className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase mb-1.5 block">Policy Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} required
-                className="w-full bg-darkBg border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan" />
+              <label className="form-label">Policy Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} required autoFocus
+                className="input-base" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-400 uppercase mb-1.5 block">Description</label>
+              <label className="form-label">Description</label>
               <input value={desc} onChange={e => setDesc(e.target.value)}
-                className="w-full bg-darkBg border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan" />
+                placeholder="Optional description…"
+                className="input-base" />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase">YAML Configuration</label>
+                <label className="form-label mb-0">YAML Configuration</label>
                 <span className="text-[10px] text-gray-500 flex items-center gap-1"><Code className="w-3 h-3" /> Must contain a policy: block</span>
               </div>
               <textarea value={yaml} onChange={e => setYaml(e.target.value)} rows={12} required
-                className="w-full bg-darkBg border border-darkBorder rounded-lg p-3 text-xs text-gray-300 font-mono focus:outline-none focus:border-accentCyan" />
+                className="input-base font-mono text-xs text-gray-300 resize-none" />
             </div>
             <div className="flex gap-3 justify-end pt-2">
-              <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2.5 border border-darkBorder text-sm text-gray-400 rounded-lg hover:bg-darkBg">Cancel</button>
-              <button type="submit" className="px-5 py-2.5 bg-gradient-to-r from-accentCyan to-accentBlue text-white font-semibold rounded-lg text-sm hover:opacity-90">Save Policy</button>
+              <Btn type="button" variant="secondary" onClick={() => setShowModal(false)}>Cancel</Btn>
+              <Btn type="submit">Save Policy</Btn>
             </div>
           </form>
         </Modal>

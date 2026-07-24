@@ -8,6 +8,7 @@ import { api } from '../hooks/useApi';
 import type { Device, DevicesPage, DeviceDetail, Label, Team, Policy } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import Modal from '../components/Modal';
+import { ToastContainer, useToast } from '../components/Toast';
 
 type DetailTab = 'overview' | 'apps' | 'commands' | 'compliance' | 'activity';
 
@@ -30,15 +31,13 @@ export default function DevicesPage() {
   const [labels, setLabels] = useState<Label[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
-  const [feedback, setFeedback] = useState('');
+  const { toasts, remove, flash } = useToast();
   const [showBulkTeam, setShowBulkTeam] = useState(false);
   const [showBulkPolicy, setShowBulkPolicy] = useState(false);
   const [bulkTeamId, setBulkTeamId] = useState('');
   const [bulkPolicyId, setBulkPolicyId] = useState('');
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [appSearch, setAppSearch] = useState('');
-
-  const flash = (msg: string) => { setFeedback(msg); setTimeout(() => setFeedback(''), 4000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -455,13 +454,8 @@ export default function DevicesPage() {
             </div>
           </div>
         )}
-        {/* Fixed bottom-right toast */}
-        {feedback && (
-          <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl animate-fade-in max-w-sm">
-            <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{feedback}</span>
-          </div>
-        )}
+        {/* Toast */}
+        <ToastContainer toasts={toasts} onRemove={remove} />
       </div>
     );
   }
@@ -476,22 +470,17 @@ export default function DevicesPage() {
         </div>
       </div>
 
-      {feedback && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 bg-darkCard border border-green-500/30 text-green-400 text-sm font-medium px-4 py-3 rounded-xl shadow-2xl max-w-sm">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{feedback}</span>
-        </div>
-      )}
+      <ToastContainer toasts={toasts} onRemove={remove} />
 
       <div className="flex flex-col md:flex-row gap-3">
         {/* Search */}
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3.5" />
+          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3.5 pointer-events-none" />
           <input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by serial or model…"
-            className="w-full bg-darkCard border border-darkBorder rounded-lg pl-10 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-accentCyan"
+            className="w-full bg-darkCard border border-darkBorder rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-accentCyan focus:ring-2 focus:ring-accentCyan/15 transition-all"
           />
         </div>
 
@@ -499,7 +488,7 @@ export default function DevicesPage() {
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="bg-darkCard border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan"
+          className="bg-darkCard border border-darkBorder rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan focus:ring-2 focus:ring-accentCyan/15 transition-all"
         >
           <option value="">All Statuses</option>
           <option value="ENROLLED">Enrolled</option>
@@ -512,7 +501,7 @@ export default function DevicesPage() {
           <select
             value={selectedLabel}
             onChange={e => { setSelectedLabel(e.target.value); setPage(1); }}
-            className="bg-darkCard border border-darkBorder rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan appearance-none pr-8"
+            className="bg-darkCard border border-darkBorder rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accentCyan focus:ring-2 focus:ring-accentCyan/15 transition-all appearance-none pr-8"
           >
             <option value="">All Labels</option>
             {labels.map(l => <option key={l.id} value={l.id}>{l.name} ({l.device_count})</option>)}
@@ -522,7 +511,7 @@ export default function DevicesPage() {
 
         <button
           onClick={load}
-          className="flex items-center gap-2 px-4 py-3 border border-darkBorder text-gray-300 rounded-lg text-sm hover:bg-darkBg transition-colors"
+          className="flex items-center gap-2 px-4 py-3 border border-darkBorder text-gray-300 rounded-xl text-sm hover:bg-darkBg hover:border-gray-600 hover:scale-[1.02] transition-all duration-200"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
