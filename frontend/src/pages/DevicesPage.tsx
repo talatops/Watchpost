@@ -9,6 +9,8 @@ import type { Device, DevicesPage, DeviceDetail, Label, Team, Policy } from '../
 import StatusBadge from '../components/StatusBadge';
 import Modal from '../components/Modal';
 import { ToastContainer, useToast } from '../components/Toast';
+import { useUser } from '../context/UserContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 type DetailTab = 'overview' | 'apps' | 'commands' | 'compliance' | 'activity';
 
@@ -20,6 +22,9 @@ interface InstalledApp {
 }
 
 export default function DevicesPage() {
+  const { role } = useUser();
+  const perms = usePermissions(role);
+  const dp = perms.devices;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -306,11 +311,18 @@ export default function DevicesPage() {
         {activeTab === 'commands' && (
           <div className="bg-darkCard border border-darkBorder rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Remote Commands</h3>
+            {!dp.execCommand && (
+              <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm mb-4">
+                <Lock className="w-4 h-4 flex-shrink-0" />
+                <p>Your role (<strong>{role}</strong>) does not have permission to execute remote commands.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {/* SYNC */}
               <button
                 onClick={() => sendAction(dev.id, 'SYNC')}
-                className="group flex flex-col items-center justify-center p-5 bg-accentCyan/5 border border-accentCyan/20 hover:bg-accentCyan/10 hover:border-accentCyan/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+                disabled={!dp.execCommand}
+                className="group flex flex-col items-center justify-center p-5 bg-accentCyan/5 border border-accentCyan/20 hover:bg-accentCyan/10 hover:border-accentCyan/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <div className="w-12 h-12 rounded-xl bg-accentCyan/10 flex items-center justify-center group-hover:bg-accentCyan/20 transition-colors">
                   <RefreshCw className="w-6 h-6 text-accentCyan" />
@@ -323,7 +335,8 @@ export default function DevicesPage() {
               {/* LOCK */}
               <button
                 onClick={() => sendAction(dev.id, 'LOCK')}
-                className="group flex flex-col items-center justify-center p-5 bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+                disabled={!dp.execCommand}
+                className="group flex flex-col items-center justify-center p-5 bg-amber-500/5 border border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
                   <Lock className="w-6 h-6 text-amber-400" />
@@ -336,7 +349,8 @@ export default function DevicesPage() {
               {/* REBOOT */}
               <button
                 onClick={() => sendAction(dev.id, 'REBOOT')}
-                className="group flex flex-col items-center justify-center p-5 bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+                disabled={!dp.execCommand}
+                className="group flex flex-col items-center justify-center p-5 bg-blue-500/5 border border-blue-500/20 hover:bg-blue-500/10 hover:border-blue-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
                   <Power className="w-6 h-6 text-blue-400" />
@@ -346,14 +360,15 @@ export default function DevicesPage() {
                   <p className="text-[10px] text-blue-400/70 mt-0.5">Restart device</p>
                 </div>
               </button>
-              {/* Corporate Wipe */}
+              {/* Corporate Wipe — TEAM_ADMIN+ */}
               <button
                 onClick={() => {
                   if (confirm('Corporate Wipe removes all managed data but preserves personal data. Continue?')) {
                     sendAction(dev.id, 'WIPE', 'CORPORATE');
                   }
                 }}
-                className="group flex flex-col items-center justify-center p-5 bg-orange-500/5 border border-orange-500/20 hover:bg-orange-500/10 hover:border-orange-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+                disabled={!dp.execWipeCorp}
+                className="group flex flex-col items-center justify-center p-5 bg-orange-500/5 border border-orange-500/20 hover:bg-orange-500/10 hover:border-orange-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
                   <Trash2 className="w-6 h-6 text-orange-400" />
@@ -363,14 +378,15 @@ export default function DevicesPage() {
                   <p className="text-[10px] text-orange-400/70 mt-0.5">Work data only</p>
                 </div>
               </button>
-              {/* Factory Reset */}
+              {/* Factory Reset — SUPER_ADMIN / ORG_ADMIN only */}
               <button
                 onClick={() => {
                   if (confirm('⚠️ Factory Reset will erase ALL data on the device. This cannot be undone. Continue?')) {
                     sendAction(dev.id, 'WIPE', 'FULL');
                   }
                 }}
-                className="group flex flex-col items-center justify-center p-5 bg-red-500/5 border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3"
+                disabled={!dp.execWipeFull}
+                className="group flex flex-col items-center justify-center p-5 bg-red-500/5 border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 hover:scale-[1.03] active:scale-[0.98] rounded-2xl transition-all duration-150 gap-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
                   <Trash2 className="w-6 h-6 text-red-500" />
@@ -518,16 +534,16 @@ export default function DevicesPage() {
       </div>
 
       {/* Bulk action bar */}
-      {selected.size > 0 && (
+      {selected.size > 0 && dp.bulkActions && (
         <div className="flex items-center gap-3 p-3 bg-accentBlue/10 border border-accentBlue/30 rounded-xl text-sm">
           <span className="text-white font-semibold">{selected.size} selected</span>
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => bulkAction('SYNC')} className="px-3 py-1.5 bg-accentCyan/10 border border-accentCyan/30 text-accentCyan rounded-lg hover:bg-accentCyan/20">Sync All</button>
             <button onClick={() => bulkAction('LOCK')} className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/20">Lock All</button>
             <button onClick={() => bulkAction('REBOOT')} className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg hover:bg-blue-500/20">Reboot All</button>
-            <button onClick={() => bulkAction('WIPE')} className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20">Wipe All</button>
-            <button onClick={() => setShowBulkTeam(true)} className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/20">Assign Team</button>
-            <button onClick={() => setShowBulkPolicy(true)} className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20">Push Policy</button>
+            {dp.execWipeFull && <button onClick={() => bulkAction('WIPE')} className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20">Wipe All</button>}
+            {dp.assignTeam && <button onClick={() => setShowBulkTeam(true)} className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/20">Assign Team</button>}
+            {dp.assignPolicy && <button onClick={() => setShowBulkPolicy(true)} className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/20">Push Policy</button>}
           </div>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-gray-400 hover:text-white"><X className="w-4 h-4" /></button>
         </div>
@@ -539,12 +555,14 @@ export default function DevicesPage() {
           <thead>
             <tr className="border-b border-darkBorder bg-darkBg/30 text-gray-400 text-xs font-semibold uppercase tracking-wider">
               <th className="p-3 w-10">
-                <input
-                  type="checkbox"
-                  checked={selected.size === (data.data ?? []).length && (data.data ?? []).length > 0}
-                  onChange={selectAll}
-                  className="rounded"
-                />
+                {dp.bulkActions && (
+                  <input
+                    type="checkbox"
+                    checked={selected.size === (data.data ?? []).length && (data.data ?? []).length > 0}
+                    onChange={selectAll}
+                    className="rounded"
+                  />
+                )}
               </th>
               <th className="p-3">Device</th>
               <th className="p-3">Serial</th>
@@ -563,7 +581,11 @@ export default function DevicesPage() {
               <tr key={d.id}
                 className={`hover:bg-darkBg/40 transition-colors animate-fade-in-up ${selected.has(d.id) ? 'bg-accentBlue/5' : ''}`}
                 style={{ animationDelay: `${idx * 30}ms` }}>
-                <td className="p-3"><input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="rounded" /></td>
+                <td className="p-3">
+                  {dp.bulkActions
+                    ? <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleSelect(d.id)} className="rounded" />
+                    : null}
+                </td>
                 <td className="p-3 font-semibold text-white">{d.model}</td>
                 <td className="p-3 font-mono text-xs">{d.serial_number}</td>
                 <td className="p-3">{d.os_version}</td>
